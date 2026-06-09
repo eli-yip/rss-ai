@@ -11,7 +11,8 @@ Current state of the `rss-ai` gateway. Update as milestones land.
 
 ## Next
 
-- [ ] Implementation plan — `docs/plans/`
+- [ ] Execute plan-0 — `docs/plans/2026-06-09-dev-environment-plan.md` (runnable skeleton)
+- [ ] plan-1: reverse-proxy passthrough + prefix/handler resolution
 
 ## Notes
 
