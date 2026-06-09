@@ -41,6 +41,16 @@ go — append-only, terse, no rewriting earlier entries (this saves tokens while
 working). **After the plan is complete**, do a single consolidation pass: dedupe,
 group, and rewrite the lessons file into a clean, organized form.
 
+## Commits
+
+Use **Conventional Commits** (`<type>(<scope>): <subject>`), e.g.
+`feat(gateway): add longest-prefix handler resolution`,
+`fix(cache): re-rewrite when upstream title changes`,
+`docs(spec): clarify json passthrough`. Common types: `feat`, `fix`, `docs`,
+`refactor`, `test`, `chore`, `build`, `ci`.
+
 ## Language
 
-All repository files (docs, code, comments) are written in **English**.
+- **Repository files** (docs, code, comments, commit messages) are written in
+  **English**.
+- **Claude Code conversations** with the user are conducted in **Chinese**.

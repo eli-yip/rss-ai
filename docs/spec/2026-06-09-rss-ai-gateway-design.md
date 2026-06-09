@@ -145,7 +145,21 @@ AI 调用失败 → 用原始标题返回，**不写库**，下次请求再试�
 
 ## 9. 配置（TOML 草图）
 
+Config is **TOML-only** (no env-var overrides). `config.toml` holds secrets
+(AI key, DB DSN) and is **gitignored**; a placeholder `config.example.toml` is
+committed. On startup, if the file is missing it is created from defaults
+(maestro pattern). Loaded with `go-toml/v2` into a global `config.C`.
+
 ```toml
+[app]
+env = "dev"            # dev | prod —— 决定日志编码，并作为 Loki 的 env label
+
+[log]
+level = "info"
+
+[db]
+dsn = "postgres://user:pass@host:5432/rss_ai?sslmode=disable"
+
 [upstream]
 base_url = "https://rsshub.example.com"
 
@@ -171,16 +185,92 @@ enabled = true
 
 ## 10. 技术栈
 
-- **Go**，**Echo/v5**（HTTP）
-- **GORM + PostgreSQL**（标题映射缓存）
+- **Go 1.26**，module `github.com/eli-yip/rss-ai`
+- **Echo/v5**（HTTP），`httputil`（`NewHTTPError` / `Resp[T]`，命名 struct 响应）
+- **GORM + PostgreSQL**（标题映射缓存，**AutoMigrate** 建表）
 - **beevik/etree**（保真 XML 改写，替代 gorilla/feeds）
 - **golang.org/x/sync/singleflight**（同条目去重）
 - **golang.org/x/time/rate**（AI 限流）
+- **resty/v3**（HTTP 客户端：上游抓取、OpenAI 兼容接口）
+- **go-toml/v2**（配置）；**urfave/cli/v3**（CLI，入口 `cmd/rss-ai`）
+- **zap + lumberjack**（日志，封装为 `mlog`）
 - 反向代理：标准库 `net/http/httputil`（透传）
 - ~~Redis~~（本期不用）
 - ~~gorilla/feeds~~（手术式替换后不需要）
 
-## 11. 测试策略
+约定全面参考 `maestro-engine`（工具链、config/mlog/httputil 模式），CI 除外。
+
+## 11. 可观测性
+
+后端只有 **Loki（经 Alloy 采集）+ Grafana**——无 Prometheus/Tempo。因此可观测性
+**以结构化日志为中心**，"指标"和"追踪"都从日志派生（LogQL 聚合 + Grafana 看板）。
+
+### 11.1 标签低基数，细节进字段
+
+- **Loki labels（仅这几个，低基数）**：`service="rss-ai"`、`env`(dev/prod)、`level`。
+- **高基数信息进 JSON 日志体**（LogQL `| json` 过滤）：`handler`、`path`、`item_id`、
+  `upstream_url`、`status`、`trace_id` 等。**绝不**把 `handler`/`item_id` 设为 Loki label。
+
+### 11.2 传输
+
+应用把日志以 **JSON 打到 stdout**，Alloy 抓容器 stdout → Loki。`env=dev` 时用彩色
+console 编码（本地可读），`env=prod` 时用 JSON 编码；两者都走 stdout。
+
+### 11.3 关联 ID
+
+复用 `mlog` 的 `trace_id`（ctx 注入）。Echo 中间件给每个请求分配 `trace_id`，透传到
+上游抓取、缓存、AI 调用，**以及超时后继续的后台重写 goroutine**（后台任务沿用同一
+`trace_id`，使一次请求引发的全部动作——包括它返回后才完成的重写——可串联。）
+
+### 11.4 结构化事件（同时是指标源）
+
+每事件一行 JSON，字段固定：
+
+| 事件 | 级别 | 关键字段 |
+|------|------|---------|
+| `request.done`（每请求一条） | INFO | `path, handler, mode(handled\|passthrough), status, duration_ms, item_count, cache_hits, cache_misses, ai_calls, timed_out` |
+| `upstream.fetch` | INFO/WARN | `upstream_url, status, duration_ms, bytes` |
+| `ai.rewrite` | INFO/WARN | `handler, item_id, duration_ms, ok, err` |
+| `rewrite.background_done` | INFO | `handler, item_id, waited_ms` |
+| `ratelimit.wait` | DEBUG/INFO | `waited_ms` |
+| `error` | ERROR | `where, err`（带堆栈） |
+
+逐条目命中/未命中明细走 **DEBUG**；INFO 只出每请求一条聚合 `request.done`，避免日志量
+随条目数爆炸。
+
+### 11.5 级别约定
+
+- **INFO**：正常请求/抓取/重写完成。
+- **WARN**：超时回退（返回原始标题）、AI 单次失败将重试、上游非 2xx。
+- **ERROR**：彻底失败、DB 错误、配置错误。
+- **DEBUG**：逐条目缓存命中、singleflight 合并、限流细节。
+
+### 11.6 Grafana 看板（基于 LogQL 派生）
+
+- 缓存命中率 `cache_hits / (cache_hits + cache_misses)`。
+- AI 调用速率（盯 10k RPM 上限）与 AI 错误率。
+- 请求延迟分位 p50/p95/p99（`quantile_over_time` over `duration_ms`）。
+- 超时回退率（`timed_out=true` 占比）。
+- handled vs passthrough 占比、按 `handler` 的 Top-N 请求量。
+- 上游延迟/错误率。
+
+### 11.7 健康检查
+
+`/healthz`（存活）、`/readyz`（含 DB ping）。运维用，不进 Loki。
+
+## 12. 开发环境与工具链
+
+- **入口**：`cmd/rss-ai`，`urfave/cli/v3` 根命令启动网关。单体服务。
+- **依赖服务**：PostgreSQL 与上游 RSSHub **均连远程/已有实例**（走 `config.toml`），
+  本项目**不提供 compose.dev.yaml**。本地开发即 `go run ./cmd/rss-ai` + 指向远程的配置。
+- **工具链**（参考 maestro，CI 除外）：`just`（justfile）任务；`golangci-lint` v2 +
+  `autocorrect` + `dprint`(markdown) + `go mod tidy -diff` 组成 `just lint`；`lefthook`
+  pre-push 跑 `just lint`；`goreleaser` 构建。
+- **测试**：本项目逻辑纯软件，**遵循 TDD、可自由跑测试**（不沿用 maestro 的 "never run
+  tests" 规则）。
+- **配置**：仅 TOML；`config.toml` 含密钥、**gitignore**；提交 `config.example.toml`。
+
+## 13. 测试策略
 
 - 处理器解析：最长前缀匹配、启用/未启用、专属 vs 通用、prompt 优先级。
 - XML 改写：保真性（附件/媒体/命名空间不丢）、CDATA/转义、缺 guid 回退 link。
@@ -188,7 +278,7 @@ enabled = true
 - 并发：singleflight 去重（同 key 只一次 AI）、限流、超时回退后后台补齐且不缓存原始标题、AI 失败不写库。
 - 透传：未注册路径头/query/状态码原样、不缓存。
 
-## 12. 非目标 / YAGNI
+## 14. 非目标 / YAGNI
 
 - 不缓存上游响应（透传不缓存；注册路径每次实时拉上游）。
 - 不引入 Redis。
@@ -196,3 +286,5 @@ enabled = true
 - 不支持多上游。
 - 不处理标题以外的字段（正文/翻译/摘要等暂不做）。
 - 不重新生成 feed（仅手术式改标题）。
+- 不引入 Prometheus/Tempo——指标与追踪全部从日志派生。
+- 配置不做环境变量覆盖（仅 TOML）。
