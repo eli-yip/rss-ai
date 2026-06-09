@@ -1,0 +1,2 @@
+[pre-push.commands.lint]
+run = "just lint"

@@ -1,0 +1,29 @@
+[app]
+env = "dev"            # dev | prod
+
+[log]
+level = "info"         # debug | info | error
+
+[server]
+addr = ":8080"
+
+[db]
+dsn = "postgres://user:pass@host:5432/rss_ai?sslmode=disable"
+
+[upstream]
+base_url = "https://rsshub.example.com"
+
+[ai]
+base_url = "https://api.openai.com/v1"
+api_key  = "sk-replace-me"
+model    = "gpt-4o-mini"
+rpm      = 10000
+request_timeout = "30s"
+
+[gateway]
+wait_timeout = "10s"
+
+# Enabled prefixes (switch + allowlist). prompt is optional.
+[handlers."/twitter"]
+enabled = true
+prompt  = "Rewrite this title to be clear and readable."

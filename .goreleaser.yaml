@@ -1,0 +1,15 @@
+version: 2
+project_name: rss-ai
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: rss-ai
+    main: ./cmd/rss-ai
+    binary: rss-ai
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]

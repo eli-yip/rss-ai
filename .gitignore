@@ -358,3 +358,7 @@ Temporary Items
 # add your custom gitignore here:
 !.gitignore
 !.gitsubmodules
+
+# rss-ai
+/config.toml
+/dist/
