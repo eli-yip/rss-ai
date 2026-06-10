@@ -2,7 +2,7 @@
 
 Current state of the `rss-ai` gateway. Update as milestones land.
 
-## Status: plan-2 complete — handled branch rewrites titles end to end
+## Status: plan-3 complete — first specialized handler (Telegram) on the seam
 
 ## Done
 
@@ -11,11 +11,12 @@ Current state of the `rss-ai` gateway. Update as milestones land.
 - [x] plan-0 dev environment — runnable skeleton (config, mlog, store, server, /healthz, /readyz)
 - [x] plan-1 proxy + handler resolution — three-layer resolver (`pkg/handler`), reverse-proxy passthrough (`pkg/proxy`), catch-all gateway (`pkg/gateway`) mounted on the server. `format=json` passthrough handled; "handled" branch is a seam (transparent passthrough) for plan-2.
 - [x] plan-2 title rewrite + cache — filled the handled seam. New packages: `pkg/feed` (surgical etree title rewrite, RSS 2.0 only), `pkg/aiclient` (any-llm-go wrapper + fake), `pkg/rewrite` (cache-first + singleflight + rate limit + timeout fallback), `pkg/upstream` (buffered resty fetch). `pkg/store` gained `LookupTitles`/`SaveTitle`; `Handler` gained `ComposePrompt`; config parses timeouts to `time.Duration`. Gateway emits the `request.done` aggregate; `?format=atom` joins json/unmatched as passthrough. Verified against real RSSHub: handled feed = upstream feed with only titles changed.
+- [x] plan-3 Telegram handler — first specialized handler on the `Handler` seam. New package `pkg/handler/telegram`: self-registers under `/telegram/channel` via `init()` (blank-imported in `cmd/rss-ai`), flattens the message HTML to text (`x/net/html`), and composes a body-first prompt (synthetic title demoted to a hint, dropped when it's a prefix of the body). `config.example.toml` enables `/telegram/channel`. Establishes the sub-package + blank-import pattern for future specialized handlers.
 
 ## Next
 
 - [ ] Atom output rewrite (deferred this release — atom currently passes through).
-- [ ] Production specialized handlers (the `Handler`/`ComposePrompt` seam is ready; general handler covers everything for now).
+- [ ] More specialized handlers as needed (pattern set by plan-3; general handler covers the rest).
 
 ## Notes
 
