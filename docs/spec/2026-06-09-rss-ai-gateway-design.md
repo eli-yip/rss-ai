@@ -3,6 +3,10 @@
 **日期：** 2026-06-09
 **状态：** 设计待审
 
+> **plan-2 修订（2026-06-10）：** 实施期对 §3、§5.1、§5.2、§5.3、§8、§10、§14 做了细化——
+> 本期只支持 RSS 2.0（Atom 随 JSON 一并透传）、AI 输入纳入条目正文、缓存失效只看
+> `source_title`、AI 调用改用 `any-llm-go`。各节内以 **plan-2** 标注。
+
 ## 1. 目标
 
 在 RSSHub 前面放一层网关。RSSHub 返回的条目标题有时不够易读，网关对**已注册**的来源用 AI（LLM）重写标题，使其更易读、更准确，并缓存结果以避免重复调用 AI。
@@ -50,10 +54,13 @@ RSS 阅读器 ──▶ rss-ai 网关 ──▶ RSSHub（单实例，配置 base
 
 **输出格式处理：** RSSHub 默认输出 **RSS 2.0**（XML），`?format=atom` 为 Atom（同为 XML），`?format=json` 为 JSON Feed。
 
-- 默认（RSS 2.0）与 Atom 均为 XML → 正常走改标题流程（`etree` 可解析）。
-- 显式 `format=json` → 即使前缀已启用，也**直接透传不改**（手术式替换基于 XML，不处理 JSON）。
+**plan-2：本期只处理 RSS 2.0。**
 
-绝大多数请求是默认 RSS 2.0，会被完整处理；JSON 是少数显式指定的边缘情况。
+- 默认（RSS 2.0）→ 走改标题流程（`etree` 解析 `<item>/<title>`）。
+- 显式 `format=atom` 或 `format=json` → 即使前缀已启用，也**直接透传不改**。手术式
+  替换本期只覆盖 RSS 2.0；Atom 改写推迟（见 §14）。
+
+绝大多数请求是默认 RSS 2.0，会被完整处理；Atom/JSON 是少数显式指定的边缘情况，透传放行。
 
 ## 4. 处理器解析（三层）
 
@@ -71,7 +78,7 @@ RSS 阅读器 ──▶ rss-ai 网关 ──▶ RSSHub（单实例，配置 base
 
 ### 5.1 改写方式：保真的外科手术式替换
 
-只改标题，其余 XML 一字不动。**用保留完整 DOM 的 XML 库（`beevik/etree`）**，而非字符串/正则手术：
+只改标题，其余 XML 一字不动。**用保留完整 DOM 的 XML 库（`beevik/etree`）**，而非字符串/正则手术。**plan-2：本期只覆盖 RSS 2.0 的 `<item>/<title>`。**
 
 1. 加载整棵文档树。
 2. 定位每个 item 的 `title` 节点。
@@ -84,7 +91,7 @@ RSS 阅读器 ──▶ rss-ai 网关 ──▶ RSSHub（单实例，配置 base
 
 ### 5.2 条目标识
 
-`id` 取值优先级：RSS `<guid>` → Atom `<id>` → 回退 `<link>`。
+`id` 取值优先级：RSS `<guid>` → 回退 `<link>`。**plan-2：本期无 Atom，不取 atom `<id>`**（Atom 推迟见 §14）。
 
 ### 5.3 缓存逻辑
 
@@ -92,6 +99,9 @@ RSS 阅读器 ──▶ rss-ai 网关 ──▶ RSSHub（单实例，配置 base
 
 - 命中且 `source_title` 一致 → 用 `rewritten_title`。
 - 未命中，或上游改了标题（`source_title` 不一致）→ 调 AI 重写，写入/更新该行。
+
+**plan-2：失效判断只看 `source_title`，不看正文。** 正文不入库（§6 表无正文列），命中后
+只比标题；接受“正文变但标题没变 → 不重算”的取舍。
 
 数据库存的是**标题映射**，不是条目本身，表很小、逻辑简单。
 
@@ -139,8 +149,9 @@ AI 调用失败 → 用原始标题返回，**不写库**，下次请求再试�
 
 ## 8. AI 集成
 
-- 通过**任意 OpenAI 兼容接口**调用，模型/endpoint/key 走配置。
-- 输入：条目原始标题（+ 处理器 prompt）。输出：重写后的标题。
+- 通过**任意 OpenAI 兼容接口**调用，模型/endpoint/key 走配置。客户端用 `any-llm-go`（见 §10）。
+- **plan-2：输入 = 条目原始标题 + 条目正文（RSS `<content:encoded>` / `<description>`）+ 处理器
+  prompt**，让模型读全文后产出更好的标题。输出**仅**重写后的标题，正文等字段一字不动。
 - prompt 解析见 §4。
 
 ## 9. 配置（TOML 草图）
@@ -191,7 +202,8 @@ enabled = true
 - **beevik/etree**（保真 XML 改写，替代 gorilla/feeds）
 - **golang.org/x/sync/singleflight**（同条目去重）
 - **golang.org/x/time/rate**（AI 限流）
-- **resty/v3**（HTTP 客户端：上游抓取、OpenAI 兼容接口）
+- **resty/v3**（HTTP 客户端：上游抓取）
+- **any-llm-go**（`github.com/mozilla-ai/any-llm-go`，OpenAI 兼容 AI 调用，endpoint/model/key 走配置）
 - **go-toml/v2**（配置）；**urfave/cli/v3**（CLI，入口 `cmd/rss-ai`）
 - **zap + lumberjack**（日志，封装为 `mlog`）
 - 反向代理：标准库 `net/http/httputil`（透传）
@@ -286,5 +298,7 @@ console 编码（本地可读），`env=prod` 时用 JSON 编码；两者都走 
 - 不支持多上游。
 - 不处理标题以外的字段（正文/翻译/摘要等暂不做）。
 - 不重新生成 feed（仅手术式改标题）。
+- **plan-2：不支持 Atom 输出改写**——本期 `?format=atom` 随 JSON 一并透传，`etree` 仅处理
+  RSS 2.0；Atom 改写为后续工作。
 - 不引入 Prometheus/Tempo——指标与追踪全部从日志派生。
 - 配置不做环境变量覆盖（仅 TOML）。
