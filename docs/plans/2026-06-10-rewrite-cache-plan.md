@@ -349,7 +349,7 @@ Tests live beside each package (`*_test.go`).
   - Error: point at a closed address → `Fetch` returns an error.
 - **Done when:** `go test ./pkg/upstream/ -v` passes.
 
-### 8. Gateway handled branch + `request.done` aggregate
+### 8. Gateway handled branch + `request.done` aggregate — [x]
 
 - **Goal:** Replace the plan-1 `// TODO plan-2` seam with the real handled flow,
   add `?format=atom` to the passthrough set (Spec deviation), and upgrade the light
@@ -389,7 +389,7 @@ Tests live beside each package (`*_test.go`).
 - **Done when:** `go test ./pkg/gateway/ -v` passes (non-integration cases run
   without Docker/DB).
 
-### 9. Real-RSSHub integration — only `<title>` bytes change
+### 9. Real-RSSHub integration — only `<title>` bytes change — [x]
 
 - **Goal:** The strongest end-to-end assertion of surgical fidelity: through the
   gateway with a **stub AI**, a handled feed differs from the direct upstream feed
@@ -412,7 +412,7 @@ Tests live beside each package (`*_test.go`).
 - **Done when:** `just integration` is green: handled feed = upstream feed except
   rewritten titles; passthrough/atom/json remain byte-identical.
 
-### 10. Wire it together in `main`
+### 10. Wire it together in `main` — [x]
 
 - **Goal:** The running binary performs the full handled flow.
 - **Changes:** `cmd/rss-ai/main.go`. After `store.New`: build

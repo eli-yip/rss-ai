@@ -11,13 +11,16 @@ import (
 	"github.com/urfave/cli/v3"
 	"go.uber.org/zap"
 
+	"github.com/eli-yip/rss-ai/pkg/aiclient"
 	"github.com/eli-yip/rss-ai/pkg/config"
 	"github.com/eli-yip/rss-ai/pkg/gateway"
 	"github.com/eli-yip/rss-ai/pkg/handler"
 	"github.com/eli-yip/rss-ai/pkg/mlog"
 	"github.com/eli-yip/rss-ai/pkg/proxy"
+	"github.com/eli-yip/rss-ai/pkg/rewrite"
 	"github.com/eli-yip/rss-ai/pkg/server"
 	"github.com/eli-yip/rss-ai/pkg/store"
+	"github.com/eli-yip/rss-ai/pkg/upstream"
 )
 
 func main() {
@@ -66,7 +69,18 @@ func run(ctx context.Context, c *cli.Command) error {
 	if err != nil {
 		return fmt.Errorf("init proxy: %w", err)
 	}
-	gw := gateway.New(handler.NewResolver(cfg.Handlers), px, logger)
+
+	ai, err := aiclient.New(cfg.AI)
+	if err != nil {
+		return fmt.Errorf("init ai client: %w", err)
+	}
+	fetcher, err := upstream.New(cfg.Upstream.BaseURL, cfg.AI.RequestTimeoutDur)
+	if err != nil {
+		return fmt.Errorf("init upstream fetcher: %w", err)
+	}
+	rewriter := rewrite.New(st, ai, cfg.AI.RPM, cfg.AI.RequestTimeoutDur, cfg.Gateway.WaitTimeoutDur, logger)
+
+	gw := gateway.New(handler.NewResolver(cfg.Handlers), px, fetcher, rewriter, logger)
 
 	srv := server.New(cfg.Server.Addr, st, logger)
 	// Catch-all for every non-health path; static routes (/healthz, /readyz)

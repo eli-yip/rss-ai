@@ -77,3 +77,25 @@ after the plan is done.
 - `rewrite.background_done` (§11.4) was skipped: the closure can't tell whether the
   request waited or timed out, so a precise event is awkward; `ai.rewrite` (ok) at
   DEBUG covers the same ground. Left as "as-needed".
+
+## Step 8-10 — gateway wiring + integration
+
+- Echo v5 `c.Response()` returns a bare `http.ResponseWriter` (no `.Status`). Read
+  the proxied status with `echo.UnwrapResponse(c.Response())` → `(*echo.Response,
+  error)`; the server's logging middleware uses the same call. `c.Blob(status,
+  contentType, body)` writes the rewritten feed.
+- The handled-branch decision changed: `?format=atom` now joins `?format=json` in
+  passthrough (RSS 2.0 only). The internal `decide` tests had to flip from
+  atom→handled to atom→passthrough.
+- **The strongest integration assertion needs no AI determinism guess:** make the
+  fake AI return a *constant*, then compute expected = `feed.Parse(directBytes)` →
+  `SetTitle(all, constant)` → `Bytes()`. The gateway does exactly that over the
+  same cached upstream bytes, so `expected == through` proves only titles moved —
+  byte-for-byte, including fields etree might reformat (resty fetch and a direct
+  fetch hit the same RSSHub cache window, so the gateway's input == the direct
+  bytes).
+- **The rewriter writes the cache concurrently (one goroutine per item).** A bare
+  `map` test double hits `fatal error: concurrent map writes` on a real multi-item
+  feed — the in-memory `Cache` fakes need a mutex. Production `*store.Store` (GORM)
+  is already safe. Caught only because the real RSSHub feed has several items;
+  single-item fixtures hid it.

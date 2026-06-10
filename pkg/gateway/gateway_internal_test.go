@@ -15,7 +15,8 @@ import (
 
 func newTestGateway(t *testing.T, handlers map[string]config.HandlerConfig) *Gateway {
 	t.Helper()
-	return New(handler.NewResolver(handlers), nil, mlog.NewNop())
+	// decide() touches neither proxy, fetcher, nor rewriter.
+	return New(handler.NewResolver(handlers), nil, nil, nil, mlog.NewNop())
 }
 
 func decideFor(t *testing.T, g *Gateway, target string) (handler.Resolution, mode) {
@@ -41,14 +42,19 @@ func TestDecideJSONIsPassthrough(t *testing.T) {
 	require.Equal(t, modePassthrough, m) // ...but explicit JSON is never modified
 }
 
-func TestDecideEnabledXMLIsHandled(t *testing.T) {
+func TestDecideAtomIsPassthrough(t *testing.T) {
 	g := newTestGateway(t, map[string]config.HandlerConfig{"/github": {Enabled: true}})
 
+	// plan-2: RSS 2.0 only, so atom passes through alongside json.
 	res, m := decideFor(t, g, "/github/issue/1?format=atom")
 	require.True(t, res.Matched)
-	require.Equal(t, modeHandled, m)
+	require.Equal(t, modePassthrough, m)
+}
 
-	res, m = decideFor(t, g, "/github/issue/1") // default RSS 2.0
+func TestDecideDefaultRSSIsHandled(t *testing.T) {
+	g := newTestGateway(t, map[string]config.HandlerConfig{"/github": {Enabled: true}})
+
+	res, m := decideFor(t, g, "/github/issue/1") // default RSS 2.0
 	require.True(t, res.Matched)
 	require.Equal(t, modeHandled, m)
 }

@@ -29,7 +29,7 @@ func TestCatchAllRoutePrecedence(t *testing.T) {
 
 	px, err := proxy.New(upstream.URL, mlog.NewNop())
 	require.NoError(t, err)
-	gw := gateway.New(handler.NewResolver(nil), px, mlog.NewNop())
+	gw := gateway.New(handler.NewResolver(nil), px, nil, nil, mlog.NewNop())
 
 	srv := server.New(":0", okPinger{}, mlog.NewNop())
 	srv.Echo().Any("/*", gw.Handle)
