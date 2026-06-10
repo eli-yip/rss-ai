@@ -318,7 +318,7 @@ Tests live beside each package (`*_test.go`).
 - **Done when:** `go test ./pkg/rewrite/ -v -race` is green across the matrix
   (run with `-race` — this is the concurrency core).
 
-### 7. `pkg/upstream` — buffered fetch
+### 7. `pkg/upstream` — buffered fetch — [x]
 
 - **Goal:** Fetch the upstream feed into memory (the handled branch needs the whole
   body to parse with etree — unlike `pkg/proxy`'s streaming passthrough, which is
