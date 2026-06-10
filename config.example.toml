@@ -24,10 +24,7 @@ request_timeout = "30s"
 wait_timeout = "10s"
 
 # Enabled prefixes (switch + allowlist). prompt is optional.
-[handlers."/twitter"]
-enabled = true
-prompt  = "Rewrite this title to be clear and readable."
-
+#
 # Telegram channel feeds have synthetic (truncated) titles, so a specialized
 # handler is registered for this exact prefix. With no prompt it uses that
 # handler's built-in Telegram prompt; set prompt here to override it (spec §4).
