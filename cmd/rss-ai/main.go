@@ -15,6 +15,7 @@ import (
 	"github.com/eli-yip/rss-ai/pkg/config"
 	"github.com/eli-yip/rss-ai/pkg/gateway"
 	"github.com/eli-yip/rss-ai/pkg/handler"
+	_ "github.com/eli-yip/rss-ai/pkg/handler/telegram" // registers the /telegram/channel handler via init()
 	"github.com/eli-yip/rss-ai/pkg/mlog"
 	"github.com/eli-yip/rss-ai/pkg/proxy"
 	"github.com/eli-yip/rss-ai/pkg/rewrite"
