@@ -3,6 +3,7 @@ module github.com/eli-yip/rss-ai
 go 1.26
 
 require (
+	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.28.0
 )
