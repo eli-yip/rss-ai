@@ -4,7 +4,7 @@
 
 **Spec:** `docs/spec/2026-06-09-rss-ai-gateway-design.md`
 **Lessons:** `docs/lessons/2026-06-09-dev-environment-lessons.md` (append during execution)
-**Status:** not started
+**Status:** complete
 
 **Goal:** Stand up a runnable, observable service skeleton — config, logging, DB, and an HTTP server with health checks — onto which later plans bolt the proxy and rewrite logic.
 
@@ -16,26 +16,26 @@
 
 ## File Structure
 
-| File | Responsibility |
-|------|----------------|
-| `go.mod` / `go.sum` | Module `github.com/eli-yip/rss-ai`, go 1.26. |
-| `justfile` | Task runner: `run`, `build`, `lint`, `fmt`, `test`. |
-| `.golangci.toml` | golangci-lint v2 config. |
-| `.lefthook.toml` | pre-push runs `just lint`. |
-| `dprint.json` | Markdown formatting. |
-| `.goreleaser.yaml` | Single-binary build for `cmd/rss-ai`. |
-| `.gitignore` | Append `config.toml`, `/dist/`. |
-| `config.example.toml` | Committed config template (placeholders). |
-| `pkg/ctxutil/ctxutil.go` | Typed context value helpers. |
-| `pkg/mlog/zap.go` | `mlog.Logger` (zap wrapper), stdout, env-based encoder, `trace_id`. |
-| `pkg/mlog/level.go` | `LogLevelFromString`. |
-| `pkg/config/config.go` | `Config` struct, `Init`, global `C`. |
-| `pkg/httputil/error.go` | `NewHTTPError`, Echo error handler. |
-| `pkg/httputil/resp.go` | `Resp[T]`, `NewMessage`. |
-| `pkg/store/store.go` | GORM connect, `ItemTitle` model, AutoMigrate, `Ping`. |
-| `pkg/server/server.go` | Echo bootstrap, `/healthz`, `/readyz`, Start/Stop. |
-| `pkg/server/middleware.go` | `traceIDMiddleware`, `requestLoggerMiddleware`. |
-| `cmd/rss-ai/main.go` | CLI entry: wire config → logger → store → server. |
+| File                       | Responsibility                                                      |
+| -------------------------- | ------------------------------------------------------------------- |
+| `go.mod` / `go.sum`        | Module `github.com/eli-yip/rss-ai`, go 1.26.                        |
+| `justfile`                 | Task runner: `run`, `build`, `lint`, `fmt`, `test`.                 |
+| `.golangci.toml`           | golangci-lint v2 config.                                            |
+| `.lefthook.toml`           | pre-push runs `just lint`.                                          |
+| `dprint.json`              | Markdown formatting.                                                |
+| `.goreleaser.yaml`         | Single-binary build for `cmd/rss-ai`.                               |
+| `.gitignore`               | Append `config.toml`, `/dist/`.                                     |
+| `config.example.toml`      | Committed config template (placeholders).                           |
+| `pkg/ctxutil/ctxutil.go`   | Typed context value helpers.                                        |
+| `pkg/mlog/zap.go`          | `mlog.Logger` (zap wrapper), stdout, env-based encoder, `trace_id`. |
+| `pkg/mlog/level.go`        | `LogLevelFromString`.                                               |
+| `pkg/config/config.go`     | `Config` struct, `Init`, global `C`.                                |
+| `pkg/httputil/error.go`    | `NewHTTPError`, Echo error handler.                                 |
+| `pkg/httputil/resp.go`     | `Resp[T]`, `NewMessage`.                                            |
+| `pkg/store/store.go`       | GORM connect, `ItemTitle` model, AutoMigrate, `Ping`.               |
+| `pkg/server/server.go`     | Echo bootstrap, `/healthz`, `/readyz`, Start/Stop.                  |
+| `pkg/server/middleware.go` | `traceIDMiddleware`, `requestLoggerMiddleware`.                     |
+| `cmd/rss-ai/main.go`       | CLI entry: wire config → logger → store → server.                   |
 
 Tests live beside each package (`*_test.go`).
 
@@ -44,24 +44,28 @@ Tests live beside each package (`*_test.go`).
 ## Task 1: Module + tooling scaffolding
 
 **Files:**
+
 - Create: `go.mod` (via `go mod init`), `justfile`, `.golangci.toml`, `.lefthook.toml`, `dprint.json`, `.goreleaser.yaml`, `config.example.toml`
 - Modify: `.gitignore`
 
-- [ ] **Step 1: Initialize the module**
+- [x] **Step 1: Initialize the module**
 
 Run:
+
 ```bash
 go mod init github.com/eli-yip/rss-ai
 ```
 
 Then edit `go.mod` so the Go line reads exactly:
+
 ```
 go 1.26
 ```
 
-- [ ] **Step 2: Add core dependencies**
+- [x] **Step 2: Add core dependencies**
 
 Run:
+
 ```bash
 go get github.com/labstack/echo/v5@latest
 go get github.com/urfave/cli/v3@latest
@@ -73,7 +77,7 @@ go get github.com/stretchr/testify@latest
 
 Expected: `go.mod` lists these under `require`; `go.sum` populated.
 
-- [ ] **Step 3: Create `justfile`**
+- [x] **Step 3: Create `justfile`**
 
 ```just
 default:
@@ -104,7 +108,7 @@ test:
     go test ./...
 ```
 
-- [ ] **Step 4: Create `.golangci.toml`**
+- [x] **Step 4: Create `.golangci.toml`**
 
 ```toml
 #:schema https://golangci-lint.run/jsonschema/golangci.jsonschema.json
@@ -115,14 +119,14 @@ linters = [ "errcheck" ]
 source = "^\\s*defer\\s+" # don't flag deferred calls returning error
 ```
 
-- [ ] **Step 5: Create `.lefthook.toml`**
+- [x] **Step 5: Create `.lefthook.toml`**
 
 ```toml
 [pre-push.commands.lint]
 run = "just lint"
 ```
 
-- [ ] **Step 6: Create `dprint.json`**
+- [x] **Step 6: Create `dprint.json`**
 
 ```json
 {
@@ -133,7 +137,7 @@ run = "just lint"
 }
 ```
 
-- [ ] **Step 7: Create `.goreleaser.yaml`**
+- [x] **Step 7: Create `.goreleaser.yaml`**
 
 ```yaml
 version: 2
@@ -153,7 +157,7 @@ builds:
     goarch: [amd64, arm64]
 ```
 
-- [ ] **Step 8: Create `config.example.toml`**
+- [x] **Step 8: Create `config.example.toml`**
 
 ```toml
 [app]
@@ -187,16 +191,17 @@ enabled = true
 prompt  = "Rewrite this title to be clear and readable."
 ```
 
-- [ ] **Step 9: Append to `.gitignore`**
+- [x] **Step 9: Append to `.gitignore`**
 
 Append these lines to the end of `.gitignore`:
+
 ```gitignore
 # rss-ai
 /config.toml
 /dist/
 ```
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add -A
@@ -208,9 +213,10 @@ git commit -m "build: scaffold module, tooling, and config template"
 ## Task 2: ctxutil + mlog logging
 
 **Files:**
+
 - Create: `pkg/ctxutil/ctxutil.go`, `pkg/mlog/zap.go`, `pkg/mlog/level.go`, `pkg/mlog/level_test.go`
 
-- [ ] **Step 1: Write the failing test** — `pkg/mlog/level_test.go`
+- [x] **Step 1: Write the failing test** — `pkg/mlog/level_test.go`
 
 ```go
 package mlog_test
@@ -238,12 +244,12 @@ func TestLogLevelFromString(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./pkg/mlog/ -run TestLogLevelFromString -v`
 Expected: FAIL (package/function undefined).
 
-- [ ] **Step 3: Create `pkg/ctxutil/ctxutil.go`**
+- [x] **Step 3: Create `pkg/ctxutil/ctxutil.go`**
 
 ```go
 package ctxutil
@@ -261,7 +267,7 @@ func ValueOr[T any](ctx context.Context, key any, fallback T) T {
 }
 ```
 
-- [ ] **Step 4: Create `pkg/mlog/level.go`**
+- [x] **Step 4: Create `pkg/mlog/level.go`**
 
 ```go
 package mlog
@@ -286,7 +292,7 @@ func LogLevelFromString(level string) (zapcore.Level, error) {
 }
 ```
 
-- [ ] **Step 5: Create `pkg/mlog/zap.go`**
+- [x] **Step 5: Create `pkg/mlog/zap.go`**
 
 ```go
 package mlog
@@ -368,12 +374,12 @@ func NewNop() *Logger {
 }
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `go test ./pkg/mlog/ -v`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add pkg/ctxutil pkg/mlog
@@ -385,9 +391,10 @@ git commit -m "feat(mlog): stdout logger with env-based encoding and trace_id"
 ## Task 3: Config package
 
 **Files:**
+
 - Create: `pkg/config/config.go`, `pkg/config/config_test.go`
 
-- [ ] **Step 1: Write the failing test** — `pkg/config/config_test.go`
+- [x] **Step 1: Write the failing test** — `pkg/config/config_test.go`
 
 ```go
 package config_test
@@ -454,12 +461,12 @@ func TestInitCreatesDefaultWhenMissing(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./pkg/config/ -v`
 Expected: FAIL (package undefined).
 
-- [ ] **Step 3: Create `pkg/config/config.go`**
+- [x] **Step 3: Create `pkg/config/config.go`**
 
 ```go
 package config
@@ -571,12 +578,12 @@ func Init(configPath string) error {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `go test ./pkg/config/ -v`
 Expected: PASS (both tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/config
@@ -588,9 +595,10 @@ git commit -m "feat(config): TOML config loader with defaults"
 ## Task 4: httputil (error + response)
 
 **Files:**
+
 - Create: `pkg/httputil/error.go`, `pkg/httputil/resp.go`, `pkg/httputil/resp_test.go`
 
-- [ ] **Step 1: Write the failing test** — `pkg/httputil/resp_test.go`
+- [x] **Step 1: Write the failing test** — `pkg/httputil/resp_test.go`
 
 ```go
 package httputil_test
@@ -621,12 +629,12 @@ func TestNewHTTPError(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./pkg/httputil/ -v`
 Expected: FAIL (package undefined).
 
-- [ ] **Step 3: Create `pkg/httputil/resp.go`**
+- [x] **Step 3: Create `pkg/httputil/resp.go`**
 
 ```go
 package httputil
@@ -647,7 +655,7 @@ func NewResp[T any](message string, data T) Resp[T] {
 func NewMessage(message string) EmptyResp { return EmptyResp{Message: message} }
 ```
 
-- [ ] **Step 4: Create `pkg/httputil/error.go`**
+- [x] **Step 4: Create `pkg/httputil/error.go`**
 
 ```go
 package httputil
@@ -703,12 +711,12 @@ func (e *EchoHTTPErrorHandler) DefaultEchoHTTPErrorHandler(c *echo.Context, err 
 > the exact forms used in maestro-engine on Go 1.26. If the build reports a
 > different v5 signature, fix to match and record it in the lessons file.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `go test ./pkg/httputil/ -v`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add pkg/httputil
@@ -720,9 +728,10 @@ git commit -m "feat(httputil): error handler and typed responses"
 ## Task 5: Store (GORM + item_titles)
 
 **Files:**
+
 - Create: `pkg/store/store.go`, `pkg/store/store_test.go`
 
-- [ ] **Step 1: Write the failing test** — `pkg/store/store_test.go`
+- [x] **Step 1: Write the failing test** — `pkg/store/store_test.go`
 
 The DB lives on a remote instance, so this is an integration test guarded by an
 env var; it skips when unset.
@@ -752,13 +761,13 @@ func TestStoreAutoMigrateAndPing(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./pkg/store/ -v`
 Expected: FAIL (package undefined). With `RSS_AI_TEST_DSN` unset it will not yet
 even compile — that is the failure we want.
 
-- [ ] **Step 3: Create `pkg/store/store.go`**
+- [x] **Step 3: Create `pkg/store/store.go`**
 
 ```go
 package store
@@ -811,13 +820,13 @@ func (s *Store) Ping(ctx context.Context) error {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes (or skips)**
+- [x] **Step 4: Run test to verify it passes (or skips)**
 
 Run: `go test ./pkg/store/ -v`
 Expected: PASS — `SKIP` when `RSS_AI_TEST_DSN` is unset; full PASS when set to a
 reachable Postgres DSN.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pkg/store
@@ -829,9 +838,10 @@ git commit -m "feat(store): gorm connection, item_titles model, automigrate"
 ## Task 6: HTTP server (health + middleware)
 
 **Files:**
+
 - Create: `pkg/server/server.go`, `pkg/server/middleware.go`, `pkg/server/server_test.go`, `pkg/server/middleware_internal_test.go`
 
-- [ ] **Step 1: Write the failing test** — `pkg/server/server_test.go`
+- [x] **Step 1: Write the failing test** — `pkg/server/server_test.go`
 
 ```go
 package server_test
@@ -884,12 +894,12 @@ func TestReadyzDown(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `go test ./pkg/server/ -run 'TestHealthz|TestReadyz' -v`
 Expected: FAIL (package undefined).
 
-- [ ] **Step 3: Create `pkg/server/middleware.go`**
+- [x] **Step 3: Create `pkg/server/middleware.go`**
 
 ```go
 package server
@@ -946,7 +956,7 @@ func requestLoggerMiddleware(logger *mlog.Logger) echo.MiddlewareFunc {
 }
 ```
 
-- [ ] **Step 4: Create `pkg/server/server.go`**
+- [x] **Step 4: Create `pkg/server/server.go`**
 
 ```go
 package server
@@ -1038,7 +1048,7 @@ func (s *Server) Stop(ctx context.Context) error {
 }
 ```
 
-- [ ] **Step 5: Write the trace-id internal test** — `pkg/server/middleware_internal_test.go`
+- [x] **Step 5: Write the trace-id internal test** — `pkg/server/middleware_internal_test.go`
 
 ```go
 package server
@@ -1082,13 +1092,13 @@ func ValueFrom[T any](ctx context.Context, key any) (T, bool) {
 }
 ```
 
-- [ ] **Step 6: Run all server tests to verify they pass**
+- [x] **Step 6: Run all server tests to verify they pass**
 
 Run: `go test ./pkg/server/ ./pkg/ctxutil/ -v`
 Expected: PASS. If `e.NewContext` has a different v5 signature, adjust the test
 to match and note it in the lessons file.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add pkg/server pkg/ctxutil
@@ -1100,9 +1110,10 @@ git commit -m "feat(server): echo bootstrap with health checks and trace_id"
 ## Task 7: CLI entry + wiring
 
 **Files:**
+
 - Create: `cmd/rss-ai/main.go`
 
-- [ ] **Step 1: Create `cmd/rss-ai/main.go`**
+- [x] **Step 1: Create `cmd/rss-ai/main.go`**
 
 ```go
 package main
@@ -1184,12 +1195,12 @@ func run(ctx context.Context, c *cli.Command) error {
 }
 ```
 
-- [ ] **Step 2: Build the binary**
+- [x] **Step 2: Build the binary**
 
 Run: `go build ./...`
 Expected: builds with no errors.
 
-- [ ] **Step 3: Verify it runs end-to-end (manual)**
+- [x] **Step 3: Verify it runs end-to-end (manual)**
 
 Create a local `config.toml` from `config.example.toml` with a **reachable**
 PostgreSQL DSN (RSSHub/AI values can stay as placeholders for plan-0), then:
@@ -1209,7 +1220,7 @@ in dev). On Ctrl+C the process logs `bye` and exits cleanly.
 > If you have no reachable Postgres handy, `store.New` will fail at startup — that
 > is expected and itself confirms wiring. Note the outcome in the lessons file.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add cmd/rss-ai
@@ -1221,21 +1232,22 @@ git commit -m "feat(cmd): rss-ai entrypoint wiring config, logger, store, server
 ## Task 8: Lint pass + progress update
 
 **Files:**
+
 - Modify: `docs/PROGRESS.md`
 
-- [ ] **Step 1: Run the full lint**
+- [x] **Step 1: Run the full lint**
 
 Run: `just lint`
 Expected: clean (or fix what it reports). If `autocorrect`/`dprint`/`golangci-lint`
 are not installed, install them or run their underlying checks (`go vet ./...`,
 `go test ./...`) and note the gap in the lessons file.
 
-- [ ] **Step 2: Run the test suite**
+- [x] **Step 2: Run the test suite**
 
 Run: `go test ./...`
 Expected: PASS (store test SKIPs without `RSS_AI_TEST_DSN`).
 
-- [ ] **Step 3: Update `docs/PROGRESS.md`**
+- [x] **Step 3: Update `docs/PROGRESS.md`**
 
 Mark plan-0 done and point at the next plan. Replace the "Next" section:
 
@@ -1251,13 +1263,13 @@ Mark plan-0 done and point at the next plan. Replace the "Next" section:
 - [ ] plan-1: reverse-proxy passthrough + prefix/handler resolution
 ```
 
-- [ ] **Step 4: Consolidate the lessons file**
+- [x] **Step 4: Consolidate the lessons file**
 
 Per AGENTS.md, do the single consolidation pass on
 `docs/lessons/2026-06-09-dev-environment-lessons.md`: dedupe, group, rewrite the
 append-only notes into a clean organized form.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/PROGRESS.md docs/lessons/2026-06-09-dev-environment-lessons.md
