@@ -1,0 +1,35 @@
+# Test-only stack: a throwaway RSSHub used as a real upstream by the gateway
+# integration tests (pkg/gateway/rsshub_integration_test.go).
+#
+# Stripped down from the production deployment — no Traefik, Redis, or headless
+# browser. RSSHub runs with an in-memory cache and is reachable only on
+# localhost. The built-in `/test/*` routes serve deterministic feeds without any
+# external network or credentials, which is all the gateway passthrough tests
+# need.
+#
+# Bring it up with `just rsshub-up` (or run the whole flow via `just integration`).
+
+services:
+  rsshub:
+    image: diygod/rsshub:latest
+    ports:
+      - "127.0.0.1:1200:1200"
+    environment:
+      NODE_ENV: production
+      CACHE_TYPE: memory
+      # Keep rendered feeds cached long enough that a direct fetch and the
+      # gateway's proxied fetch of the same URL return byte-identical bodies
+      # (RSSHub bakes timestamps at first render).
+      CACHE_EXPIRE: "600"
+      ALLOW_ORIGIN: "*"
+    healthcheck:
+      # The image ships node but not curl/wget; probe with node instead.
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://localhost:1200/test/1',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s

@@ -17,4 +17,6 @@ Current state of the `rss-ai` gateway. Update as milestones land.
 
 ## Notes
 
-(none yet)
+- Integration tests run the gateway against a real RSSHub (`compose.test.yaml`,
+  RSSHub `/test/*` routes). Gated on `RSS_AI_TEST_UPSTREAM`; `just integration`
+  brings the stack up, runs the suite, and tears it down.

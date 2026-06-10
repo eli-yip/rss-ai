@@ -57,6 +57,31 @@ Reflections from building the catch-all gateway: three-layer handler resolution
 - An external `gateway_test` package can import `pkg/server` to verify route
   precedence without an import cycle (server does not import gateway).
 
+## Integration testing against real RSSHub
+
+- `compose.test.yaml` is a stripped-down RSSHub (no Traefik/Redis/browser, memory
+  cache, bound to `127.0.0.1:1200`). The production compose's puppeteer/cookie
+  machinery is unnecessary: RSSHub's built-in **`/test/*` routes** serve
+  deterministic feeds (RSS / `?format=atom` / `?format=json`) with no external
+  network or credentials — exactly what passthrough tests need.
+- The image ships **node but not curl/wget**, so the container healthcheck probes
+  with `node -e "require('http').get(...)"`. `docker compose up -d --wait` then
+  blocks until healthy.
+- **Byte-equality between a direct fetch and the proxied fetch depends on RSSHub
+  caching.** RSSHub bakes timestamps (`lastBuildDate`, `pubDate`) at first render
+  and caches by URL (`rsshub-cache-status: HIT`), so the same path returns
+  identical bytes within `CACHE_EXPIRE`. Set `CACHE_EXPIRE` generously (600s) so
+  the test's two fetches land in the same cache window. The feed self-link echoes
+  the request Host; the proxy sets `Out.Host = upstream host`, matching a direct
+  curl, so even the self-link bytes line up.
+- The integration test is **env-gated** (`RSS_AI_TEST_UPSTREAM`) and skips when
+  unset or unreachable — same pattern as the store test's `RSS_AI_TEST_DSN`, so
+  `go test ./...` stays green without Docker. `just integration` orchestrates
+  up → test → unconditional teardown (`down -v` runs even when tests fail).
+- Testing all three branches (handled / json-passthrough / unmatched) with two
+  gateways — one enabling `/test`, one enabling nothing — proves every plan-1
+  branch is byte-transparent without needing distinct upstream routes.
+
 ## Tooling
 
 - `dprint` globs all `*.md`, including new plan/lessons files — `just lint` fails
