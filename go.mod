@@ -6,6 +6,7 @@ require (
 	github.com/labstack/echo/v5 v5.1.1
 	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/stretchr/testify v1.11.1
+	github.com/urfave/cli/v3 v3.9.0
 	go.uber.org/zap v1.28.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
