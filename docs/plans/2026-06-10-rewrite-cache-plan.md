@@ -6,7 +6,7 @@
 
 **Spec:** `docs/spec/2026-06-09-rss-ai-gateway-design.md` (read §3, §5, §6, §7, §8, §11.4, §13)
 **Lessons:** `docs/lessons/2026-06-10-rewrite-cache-lessons.md` (append during execution)
-**Status:** not started
+**Status:** in progress
 
 ## Overview
 
@@ -69,7 +69,7 @@ Tests live beside each package (`*_test.go`).
 
 ## Steps
 
-### 1. Parse config durations at load
+### 1. Parse config durations at load — [x]
 
 - **Goal:** `AI.RequestTimeout` and `Gateway.WaitTimeout` (TOML strings like
   `"30s"`) become typed `time.Duration` available to consumers, validated once at

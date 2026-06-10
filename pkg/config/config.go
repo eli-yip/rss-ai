@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -35,10 +36,17 @@ type AI struct {
 	Model          string `toml:"model"`
 	RPM            int    `toml:"rpm"`
 	RequestTimeout string `toml:"request_timeout"`
+
+	// RequestTimeoutDur is RequestTimeout parsed at load (see Init). time.Duration
+	// has no TextUnmarshaler, so it cannot be decoded from TOML directly.
+	RequestTimeoutDur time.Duration `toml:"-"`
 }
 
 type Gateway struct {
 	WaitTimeout string `toml:"wait_timeout"`
+
+	// WaitTimeoutDur is WaitTimeout parsed at load (see Init).
+	WaitTimeoutDur time.Duration `toml:"-"`
 }
 
 type HandlerConfig struct {
@@ -100,6 +108,15 @@ func Init(configPath string) error {
 	cfg := defaultConfig()
 	if err := toml.Unmarshal(data, &cfg); err != nil {
 		return fmt.Errorf("parse config %s: %w", configPath, err)
+	}
+
+	// time.Duration has no TextUnmarshaler, so the duration strings are parsed
+	// here, once, and a bad value fails startup fast.
+	if cfg.AI.RequestTimeoutDur, err = time.ParseDuration(cfg.AI.RequestTimeout); err != nil {
+		return fmt.Errorf("parse ai.request_timeout %q: %w", cfg.AI.RequestTimeout, err)
+	}
+	if cfg.Gateway.WaitTimeoutDur, err = time.ParseDuration(cfg.Gateway.WaitTimeout); err != nil {
+		return fmt.Errorf("parse gateway.wait_timeout %q: %w", cfg.Gateway.WaitTimeout, err)
 	}
 
 	C = &cfg

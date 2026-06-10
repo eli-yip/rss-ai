@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -48,6 +49,30 @@ prompt = "rewrite"
 	require.True(t, ok)
 	require.True(t, h.Enabled)
 	require.Equal(t, "rewrite", h.Prompt)
+
+	// Duration strings are parsed once at load into typed fields.
+	require.Equal(t, 30*time.Second, config.C.AI.RequestTimeoutDur)
+	require.Equal(t, 10*time.Second, config.C.Gateway.WaitTimeoutDur)
+}
+
+func TestInitParsesDefaultDurations(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+
+	require.NoError(t, config.Init(path))
+	require.Equal(t, 30*time.Second, config.C.AI.RequestTimeoutDur)
+	require.Equal(t, 10*time.Second, config.C.Gateway.WaitTimeoutDur)
+}
+
+func TestInitRejectsBadDuration(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	require.NoError(t, os.WriteFile(path, []byte(`
+[ai]
+request_timeout = "nope"
+`), 0o644))
+
+	require.Error(t, config.Init(path))
 }
 
 func TestInitCreatesDefaultWhenMissing(t *testing.T) {
