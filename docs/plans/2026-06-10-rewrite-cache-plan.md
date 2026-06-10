@@ -88,7 +88,7 @@ Tests live beside each package (`*_test.go`).
 - **Done when:** `go test ./pkg/config/ -v` passes; consumers read Durations, never
   re-parse strings.
 
-### 2. Store query/write methods
+### 2. Store query/write methods — [x]
 
 - **Goal:** `pkg/store` gains the two methods the rewrite pipeline needs (spec
   §5.3/§6): a batch lookup and an application-level update-or-insert. **No DB-level
