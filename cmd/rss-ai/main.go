@@ -12,7 +12,10 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/eli-yip/rss-ai/pkg/config"
+	"github.com/eli-yip/rss-ai/pkg/gateway"
+	"github.com/eli-yip/rss-ai/pkg/handler"
 	"github.com/eli-yip/rss-ai/pkg/mlog"
+	"github.com/eli-yip/rss-ai/pkg/proxy"
 	"github.com/eli-yip/rss-ai/pkg/server"
 	"github.com/eli-yip/rss-ai/pkg/store"
 )
@@ -59,7 +62,16 @@ func run(ctx context.Context, c *cli.Command) error {
 		return fmt.Errorf("init store: %w", err)
 	}
 
+	px, err := proxy.New(cfg.Upstream.BaseURL, logger)
+	if err != nil {
+		return fmt.Errorf("init proxy: %w", err)
+	}
+	gw := gateway.New(handler.NewResolver(cfg.Handlers), px, logger)
+
 	srv := server.New(cfg.Server.Addr, st, logger)
+	// Catch-all for every non-health path; static routes (/healthz, /readyz)
+	// take precedence over the wildcard.
+	srv.Echo().Any("/*", gw.Handle)
 	if err := srv.Start(); err != nil {
 		return fmt.Errorf("start server: %w", err)
 	}
