@@ -41,6 +41,23 @@ go — append-only, terse, no rewriting earlier entries (this saves tokens while
 working). **After the plan is complete**, do a single consolidation pass: dedupe,
 group, and rewrite the lessons file into a clean, organized form.
 
+## Testing
+
+This project follows TDD; tests run freely (`just test` / `go test ./...`).
+
+Some tests are **env-gated integration tests** that skip when their dependency is
+absent, so the default suite stays green without external services:
+
+- **Store** — set `RSS_AI_TEST_DSN` to a reachable Postgres DSN.
+- **Gateway ↔ RSSHub** — set `RSS_AI_TEST_UPSTREAM` to an RSSHub base URL. These
+  assert the gateway is byte-transparent vs the real upstream (using RSSHub's
+  built-in `/test/*` routes).
+
+`just integration` spins up a throwaway RSSHub (`compose.test.yaml`), runs the
+full suite against it, and tears the stack down regardless of outcome. To test
+against an existing RSSHub instead, point the env var at it directly:
+`RSS_AI_TEST_UPSTREAM=https://rsshub.example.com go test ./...`.
+
 ## Commits
 
 Use **Conventional Commits** (`<type>(<scope>): <subject>`), e.g.
