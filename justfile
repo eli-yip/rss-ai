@@ -9,6 +9,10 @@ run *args:
 build:
     goreleaser build --snapshot --clean --single-target
 
+[group('build')]
+build-docker *args:
+    scripts/build-docker.sh {{ args }}
+
 [group('lint')]
 lint:
     dprint check
