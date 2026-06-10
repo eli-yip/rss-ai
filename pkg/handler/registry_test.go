@@ -4,11 +4,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/eli-yip/rss-ai/pkg/feed"
 )
 
 type stubHandler struct{ prompt string }
 
-func (s stubHandler) Prompt() string { return s.prompt }
+func (s stubHandler) Prompt() string                      { return s.prompt }
+func (s stubHandler) ComposePrompt(item feed.Item) string { return item.Title }
 
 func TestRegistryRegisterAndLookup(t *testing.T) {
 	h := stubHandler{prompt: "p"}

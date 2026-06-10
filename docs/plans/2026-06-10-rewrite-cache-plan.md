@@ -200,7 +200,7 @@ Tests live beside each package (`*_test.go`).
 - **Done when:** `go test ./pkg/aiclient/ -v` passes; `Client` is satisfied by both
   the real wrapper and the fake.
 
-### 5. Extend the `Handler` interface — read-the-body rewrite input
+### 5. Extend the `Handler` interface — read-the-body rewrite input — [x]
 
 - **Goal:** Grow the `Handler` interface from "only `Prompt()`" to also produce the
   **AI user content** for an item, so the model reads the full content before
