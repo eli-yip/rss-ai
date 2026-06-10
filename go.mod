@@ -3,6 +3,7 @@ module github.com/eli-yip/rss-ai
 go 1.26
 
 require (
+	github.com/beevik/etree v1.6.0
 	github.com/labstack/echo/v5 v5.1.1
 	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/stretchr/testify v1.11.1

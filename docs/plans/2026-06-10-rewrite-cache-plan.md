@@ -117,7 +117,7 @@ Tests live beside each package (`*_test.go`).
 - **Done when:** `go test ./pkg/store/ -v` passes with a DSN and SKIPs cleanly
   without one.
 
-### 3. `pkg/feed` — surgical extraction + title rewrite (fidelity core)
+### 3. `pkg/feed` — surgical extraction + title rewrite (fidelity core) — [x]
 
 - **Goal:** The etree layer. Parse raw RSS 2.0 bytes, expose each `<item>` as a
   `feed.Item{ID, Title, Body}`, let the caller set a new title on a specific item,
