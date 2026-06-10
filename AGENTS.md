@@ -16,13 +16,13 @@ The authoritative design is the spec — read it before implementing.
 
 ## Documentation Layout
 
-| Path | Purpose |
-|------|---------|
-| `docs/spec/` | Design specs (source of truth for *what* and *why*). |
-| `docs/plans/` | Implementation plans (the *how*, step by step). |
-| `docs/lessons/` | Reflections captured during plan execution. |
-| `docs/PROGRESS.md` | Current overall progress. Keep it up to date. |
-| `goal.md` | The original one-paragraph idea. Historical. |
+| Path               | Purpose                                              |
+| ------------------ | ---------------------------------------------------- |
+| `docs/spec/`       | Design specs (source of truth for _what_ and _why_). |
+| `docs/plans/`      | Implementation plans (the _how_, step by step).      |
+| `docs/lessons/`    | Reflections captured during plan execution.          |
+| `docs/PROGRESS.md` | Current overall progress. Keep it up to date.        |
+| `goal.md`          | The original one-paragraph idea. Historical.         |
 
 ### Working rules
 

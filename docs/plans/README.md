@@ -28,6 +28,7 @@ One paragraph: what this plan delivers and the rough shape of the work.
 - **Done when:** the observable, checkable condition.
 
 ### 2. <Step name>
+
 ...
 
 ## Open questions

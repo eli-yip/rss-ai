@@ -226,14 +226,14 @@ console 编码（本地可读），`env=prod` 时用 JSON 编码；两者都走 
 
 每事件一行 JSON，字段固定：
 
-| 事件 | 级别 | 关键字段 |
-|------|------|---------|
-| `request.done`（每请求一条） | INFO | `path, handler, mode(handled\|passthrough), status, duration_ms, item_count, cache_hits, cache_misses, ai_calls, timed_out` |
-| `upstream.fetch` | INFO/WARN | `upstream_url, status, duration_ms, bytes` |
-| `ai.rewrite` | INFO/WARN | `handler, item_id, duration_ms, ok, err` |
-| `rewrite.background_done` | INFO | `handler, item_id, waited_ms` |
-| `ratelimit.wait` | DEBUG/INFO | `waited_ms` |
-| `error` | ERROR | `where, err`（带堆栈） |
+| 事件                         | 级别       | 关键字段                                                                                                                    |
+| ---------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `request.done`（每请求一条） | INFO       | `path, handler, mode(handled\|passthrough), status, duration_ms, item_count, cache_hits, cache_misses, ai_calls, timed_out` |
+| `upstream.fetch`             | INFO/WARN  | `upstream_url, status, duration_ms, bytes`                                                                                  |
+| `ai.rewrite`                 | INFO/WARN  | `handler, item_id, duration_ms, ok, err`                                                                                    |
+| `rewrite.background_done`    | INFO       | `handler, item_id, waited_ms`                                                                                               |
+| `ratelimit.wait`             | DEBUG/INFO | `waited_ms`                                                                                                                 |
+| `error`                      | ERROR      | `where, err`（带堆栈）                                                                                                      |
 
 逐条目命中/未命中明细走 **DEBUG**；INFO 只出每请求一条聚合 `request.done`，避免日志量
 随条目数爆炸。
