@@ -234,7 +234,7 @@ Tests live beside each package (`*_test.go`).
   tests stay green after the test-double update.
 - **Done when:** `go test ./pkg/handler/ -v` passes.
 
-### 6. `pkg/rewrite` — cache + singleflight + rate limit + timeout fallback (concurrency core)
+### 6. `pkg/rewrite` — cache + singleflight + rate limit + timeout fallback (concurrency core) — [x]
 
 - **Goal:** The orchestrator that turns raw RSS + a `handler.Resolution` into
   rewritten XML, implementing spec §5.3 + §7 end to end. Depends on `feed`,

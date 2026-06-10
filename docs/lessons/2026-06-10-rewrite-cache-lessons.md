@@ -52,3 +52,28 @@ after the plan is done.
   `FakeClient` (a `Block chan` released by `close()` drives timeout/dedup tests).
 - `go mod tidy` pulls the real `github.com/openai/openai-go` transitively — needed
   before the package compiles.
+
+## Step 6 — rewrite orchestrator (concurrency core)
+
+- `singleflight.DoChan` (not `Do`) is the right primitive: it runs the closure in
+  its own goroutine and returns a buffered channel, so the AI call + cache write
+  survive a request that stops reading. The detached context is built **inside**
+  the closure via `mlog.CopyTraceID(reqCtx, context.Background())` + `WithTimeout`,
+  so request cancellation never reaches the AI call (the §7.3 rule).
+- A second concurrent request for the same key joins the in-flight call; only the
+  first caller's closure runs, so its `AICalls` counter increments and the second
+  reports 0 — natural per-request stats.
+- **Deterministic concurrency tests need an arrival signal.** `FakeClient.Block`
+  (a channel closed to release) + `require.Eventually(ai.Calls()==1)` pins "the
+  first call is in flight" before starting the second goroutine; otherwise the
+  dedup race is flaky. For the timeout test: tiny `waitTimeout`, large `aiTimeout`,
+  assert fallback + `TimedOut`, then `close(Block)` and `Eventually(cache.len()==1)`
+  to prove the background write landed, then assert the next call is a hit.
+- One shared `deadline` across all per-item futures makes the request-side wait
+  per-request (wall-clock ≈ max of concurrent calls), not per-item-sequential.
+- Cache-read failure degrades to "rewrite everything" (log WARN), not serving raw
+  titles — trade-off: a DB outage means unbounded AI calls until it recovers.
+  Revisit if that bites.
+- `rewrite.background_done` (§11.4) was skipped: the closure can't tell whether the
+  request waited or timed out, so a precise event is awkward; `ai.rewrite` (ok) at
+  DEBUG covers the same ground. Left as "as-needed".
