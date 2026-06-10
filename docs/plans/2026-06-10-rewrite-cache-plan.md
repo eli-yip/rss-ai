@@ -166,7 +166,7 @@ Tests live beside each package (`*_test.go`).
 - **Done when:** `go test ./pkg/feed/ -v` is green, especially the round-trip
   identity and "only the title changed" diff tests.
 
-### 4. `pkg/aiclient` — any-llm-go wrapper + fake
+### 4. `pkg/aiclient` — any-llm-go wrapper + fake — [x]
 
 - **Goal:** A thin, mockable AI transport. Production wraps `any-llm-go`'s OpenAI
   provider configured from `config.AI` (endpoint/key/model — no hardcoded vendor,

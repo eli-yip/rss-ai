@@ -37,3 +37,18 @@ after the plan is done.
   pins baseline == input for hand-written fixtures.
 - Preserve title CDATA-vs-text wrapping on rewrite (`SetCData` if the original
   title's CharData `IsCData()`, else `SetText`) to minimize the diff.
+
+## Step 4 — any-llm-go (v0.9.0)
+
+- `openai.New(anyllm.WithBaseURL, anyllm.WithAPIKey)` → `*openai.Provider`, which
+  embeds `*CompatibleProvider` carrying `Completion(ctx, CompletionParams)
+  (*ChatCompletion, error)`. No `WithModel` — model is a `CompletionParams` field.
+- `Message.Content` is typed `any`, not `string`: set it to a string on the way in,
+  and **type-assert** `Choices[0].Message.Content.(string)` on the way out.
+- `openai.New` has `RequireAPIKey: true`, so the construction test must pass a
+  non-empty key; construction makes no network call.
+- Depend on a local `completer` interface (the one `Completion` method) so the
+  provider is swappable; the public seam is the `Client` interface, faked via
+  `FakeClient` (a `Block chan` released by `close()` drives timeout/dedup tests).
+- `go mod tidy` pulls the real `github.com/openai/openai-go` transitively — needed
+  before the package compiles.
