@@ -6,7 +6,7 @@
 
 **Spec:** `docs/spec/2026-06-09-rss-ai-gateway-design.md` (read §3, §5, §6, §7, §8, §11.4, §13)
 **Lessons:** `docs/lessons/2026-06-10-rewrite-cache-lessons.md` (append during execution)
-**Status:** in progress
+**Status:** done
 
 ## Overview
 
@@ -426,7 +426,7 @@ Tests live beside each package (`*_test.go`).
 - **Done when:** `go build ./...` is clean and `gateway.New`'s new dependencies are
   satisfied.
 
-### 11. Lint + progress + lessons consolidation
+### 11. Lint + progress + lessons consolidation — [x]
 
 - **Goal:** Green tree, updated docs, one consolidation pass on the lessons file.
 - **Changes:** `docs/PROGRESS.md` (mark plan-2 done; note the handled seam is

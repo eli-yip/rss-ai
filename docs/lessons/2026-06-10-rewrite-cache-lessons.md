@@ -1,101 +1,106 @@
 # Title Rewrite + Cache — Lessons
 
-Reflections from filling the handled seam: surgical etree title rewrite (spec
-§5.1), the title cache (§5.3/§6), and the concurrency trio + timeout fallback
-(§7). Append terse entries during execution; consolidate into themed sections
-after the plan is done.
+Filling the handled seam: surgical etree title rewrite (spec §5.1), the title
+cache (§5.3/§6), and the concurrency trio + timeout fallback (§7), plus the
+AI-client and upstream-fetch plumbing.
 
-<!-- Append entries below as you execute (format: docs/lessons/README.md). -->
+## Config
 
-## Step 1 — config durations
+- `time.Duration` has no `TextUnmarshaler`, so go-toml can't decode `"30s"`
+  straight into a Duration field. Keep the TOML string, add a `toml:"-"` Duration
+  sibling, and parse once in `config.Init` (fail fast on a bad value). Consumers
+  read the typed field and never re-parse.
 
-- `time.Duration` has no `TextUnmarshaler`, so go-toml can't decode `"30s"`. Keep
-  the TOML string field, add a `toml:"-"` Duration sibling, parse once in `Init`
-  (fail fast). Defaults (`"30s"`/`"10s"`) parse cleanly.
+## Storage / GORM
 
-## Step 2 — store update-or-insert
-
-- GORM's `First` logs `record not found` at error level when the row is absent —
-  noisy. Use `Limit(1).Find` + `RowsAffected == 0` to branch insert-vs-update
-  without the spurious log line.
+- For an app-level update-or-insert, use `Limit(1).Find` + `RowsAffected == 0` to
+  branch, not `First`: `First` logs `record not found` at error level when the row
+  is absent, which is noise on the common insert path.
 - `Updates(map[string]any{...})` auto-bumps `updated_at`; `Create` auto-fills both
-  timestamps. No need to set them by hand.
-- No local Postgres in the env, so spin a throwaway `postgres:16-alpine` on a
-  high port and point `RSS_AI_TEST_DSN` at it to actually exercise the DB methods.
+  timestamps — no need to set them by hand.
+- The rewriter calls `SaveTitle` concurrently (one goroutine per item). The real
+  `*store.Store` (GORM/pgx) is safe, but **in-memory `Cache` test doubles need a
+  mutex** — a bare map hits `fatal error: concurrent map writes` on any multi-item
+  feed. Single-item fixtures hide this; the real RSSHub feed exposed it.
 
-## Step 3 — etree fidelity
+## XML fidelity (beevik/etree v1.6.0)
 
-- etree v1.6.0 round-trips byte-for-byte with `ReadSettings{Permissive:true,
-  PreserveCData:true}` and default write settings: XML declaration, self-closing
-  `<enclosure .../>`, CDATA, and namespaced `<content:encoded>` all survive
-  verbatim. No WriteSettings tuning needed.
-- `SelectElement("content:encoded")` matches the namespace prefix directly (tag
-  may include `prefix:`), so no manual child iteration for namespaced bodies.
-- **Test surgical edits against the no-op round-trip baseline, not the raw input.**
-  `want := strings.Replace(baseline, oldTitle, newTitle, 1)` asserts "only the
-  title changed" independent of any formatting quirk; a separate identity test
-  pins baseline == input for hand-written fixtures.
-- Preserve title CDATA-vs-text wrapping on rewrite (`SetCData` if the original
-  title's CharData `IsCData()`, else `SetText`) to minimize the diff.
+- `ReadSettings{Permissive:true, PreserveCData:true}` + default write settings
+  round-trips byte-for-byte: XML declaration, self-closing `<enclosure .../>`,
+  CDATA, and namespaced `<content:encoded>` all survive verbatim. No WriteSettings
+  tuning needed.
+- `SelectElement("content:encoded")` matches the namespace prefix directly (the tag
+  arg may include `prefix:`), so no manual child iteration for namespaced bodies.
+- Preserve a title's CDATA-vs-text wrapping on rewrite: `SetCData` if the original
+  title's `CharData.IsCData()`, else `SetText`. Minimizes the diff.
 
-## Step 4 — any-llm-go (v0.9.0)
+## AI client (any-llm-go v0.9.0)
 
 - `openai.New(anyllm.WithBaseURL, anyllm.WithAPIKey)` → `*openai.Provider`, which
   embeds `*CompatibleProvider` carrying `Completion(ctx, CompletionParams)
-  (*ChatCompletion, error)`. No `WithModel` — model is a `CompletionParams` field.
-- `Message.Content` is typed `any`, not `string`: set it to a string on the way in,
-  and **type-assert** `Choices[0].Message.Content.(string)` on the way out.
-- `openai.New` has `RequireAPIKey: true`, so the construction test must pass a
-  non-empty key; construction makes no network call.
-- Depend on a local `completer` interface (the one `Completion` method) so the
-  provider is swappable; the public seam is the `Client` interface, faked via
-  `FakeClient` (a `Block chan` released by `close()` drives timeout/dedup tests).
+  (*ChatCompletion, error)`. There is no `WithModel` — model is a
+  `CompletionParams` field.
+- `Message.Content` is typed `any`, not `string`: pass a string in, and
+  **type-assert** `Choices[0].Message.Content.(string)` on the way out.
+- `openai.New` has `RequireAPIKey: true`, so a construction test must pass a
+  non-empty key; construction itself makes no network call.
+- Keep transport thin: a local `completer` interface (the one `Completion` method)
+  makes the provider swappable; the public seam is the `Client` interface. The
+  per-call timeout is the **caller's context deadline** (set in pkg/rewrite), not a
+  client option.
 - `go mod tidy` pulls the real `github.com/openai/openai-go` transitively — needed
   before the package compiles.
 
-## Step 6 — rewrite orchestrator (concurrency core)
+## Concurrency (pkg/rewrite)
 
-- `singleflight.DoChan` (not `Do`) is the right primitive: it runs the closure in
-  its own goroutine and returns a buffered channel, so the AI call + cache write
-  survive a request that stops reading. The detached context is built **inside**
-  the closure via `mlog.CopyTraceID(reqCtx, context.Background())` + `WithTimeout`,
-  so request cancellation never reaches the AI call (the §7.3 rule).
+- `singleflight.DoChan` (not `Do`): it runs the closure in its own goroutine and
+  returns a buffered channel, so the AI call + cache write survive a request that
+  stops reading. Build the detached context **inside** the closure via
+  `mlog.CopyTraceID(reqCtx, context.Background())` + `WithTimeout(aiTimeout)`, so
+  request cancellation never reaches the AI call (the §7.3 timeout-vs-cancel rule)
+  while the trace_id carries through.
 - A second concurrent request for the same key joins the in-flight call; only the
-  first caller's closure runs, so its `AICalls` counter increments and the second
-  reports 0 — natural per-request stats.
-- **Deterministic concurrency tests need an arrival signal.** `FakeClient.Block`
-  (a channel closed to release) + `require.Eventually(ai.Calls()==1)` pins "the
-  first call is in flight" before starting the second goroutine; otherwise the
-  dedup race is flaky. For the timeout test: tiny `waitTimeout`, large `aiTimeout`,
-  assert fallback + `TimedOut`, then `close(Block)` and `Eventually(cache.len()==1)`
-  to prove the background write landed, then assert the next call is a hit.
-- One shared `deadline` across all per-item futures makes the request-side wait
-  per-request (wall-clock ≈ max of concurrent calls), not per-item-sequential.
+  first caller's closure runs, so its `AICalls` increments and the second reports
+  0 — natural per-request stats.
+- One shared `deadline` across all per-item futures makes the wait per-request
+  (wall-clock ≈ max of the concurrent calls), not per-item-sequential.
 - Cache-read failure degrades to "rewrite everything" (log WARN), not serving raw
-  titles — trade-off: a DB outage means unbounded AI calls until it recovers.
-  Revisit if that bites.
-- `rewrite.background_done` (§11.4) was skipped: the closure can't tell whether the
+  titles. Trade-off: a DB outage means unbounded AI calls until it recovers.
+- Skipped `rewrite.background_done` (§11.4): the closure can't tell whether the
   request waited or timed out, so a precise event is awkward; `ai.rewrite` (ok) at
-  DEBUG covers the same ground. Left as "as-needed".
+  DEBUG covers it.
 
-## Step 8-10 — gateway wiring + integration
+## Gateway / HTTP (Echo v5)
 
-- Echo v5 `c.Response()` returns a bare `http.ResponseWriter` (no `.Status`). Read
-  the proxied status with `echo.UnwrapResponse(c.Response())` → `(*echo.Response,
-  error)`; the server's logging middleware uses the same call. `c.Blob(status,
+- `c.Response()` returns a bare `http.ResponseWriter` (no `.Status`). Read the
+  proxied status with `echo.UnwrapResponse(c.Response())` → `(*echo.Response,
+  error)` (the server's logging middleware uses the same call). `c.Blob(status,
   contentType, body)` writes the rewritten feed.
-- The handled-branch decision changed: `?format=atom` now joins `?format=json` in
-  passthrough (RSS 2.0 only). The internal `decide` tests had to flip from
-  atom→handled to atom→passthrough.
-- **The strongest integration assertion needs no AI determinism guess:** make the
-  fake AI return a *constant*, then compute expected = `feed.Parse(directBytes)` →
+- plan-2 is RSS-2.0-only, so `?format=atom` joins `?format=json` and unmatched
+  paths in the passthrough set; only default-format enabled prefixes are handled.
+
+## Testing & infra
+
+- **Test surgical edits against the no-op round-trip baseline, not the raw input.**
+  `want := strings.Replace(baseline, oldTitle, newTitle, 1)` asserts "only the
+  title changed" independent of formatting quirks; a separate identity test pins
+  baseline == input for hand-written fixtures.
+- **The real-RSSHub fidelity assertion needs no AI-output guessing:** make the fake
+  AI return a _constant_, then compute expected = `feed.Parse(directBytes)` →
   `SetTitle(all, constant)` → `Bytes()`. The gateway does exactly that over the
   same cached upstream bytes, so `expected == through` proves only titles moved —
-  byte-for-byte, including fields etree might reformat (resty fetch and a direct
+  byte-for-byte, including fields etree might reformat. (resty fetch and a direct
   fetch hit the same RSSHub cache window, so the gateway's input == the direct
-  bytes).
-- **The rewriter writes the cache concurrently (one goroutine per item).** A bare
-  `map` test double hits `fatal error: concurrent map writes` on a real multi-item
-  feed — the in-memory `Cache` fakes need a mutex. Production `*store.Store` (GORM)
-  is already safe. Caught only because the real RSSHub feed has several items;
-  single-item fixtures hid it.
+  bytes — same property plan-1 relied on.)
+- **Deterministic concurrency tests need an arrival signal.** `FakeClient.Block` (a
+  channel released by `close()`) + `require.Eventually(ai.Calls()==1)` pins "the
+  first call is in flight" before starting the second goroutine, else the dedup
+  race is flaky. Timeout test: tiny `waitTimeout`, large `aiTimeout`, fake blocks
+  past the wait → assert fallback + `TimedOut`, then `close(Block)` and
+  `Eventually(cache.len()==1)` to prove the background write landed, then assert the
+  next call is a clean hit. Run the package with `-race`.
+- No local Postgres in the env: spin a throwaway `postgres:16-alpine` on a high
+  port and point `RSS_AI_TEST_DSN` at it to actually exercise the store methods
+  (otherwise they just skip).
+- `dprint`'s emphasis normalization (`*x*` → `_x_`) is enforced by `just lint`; run
+  the bare `dprint fmt` (config globs), not `dprint fmt docs/`, to catch it.
