@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/glebarez/sqlite"
+	"github.com/ncruces/go-sqlite3/gormlite"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -49,7 +49,7 @@ func New(dsn string) (*Store, error) {
 //
 //   - postgres:// or postgresql://  → PostgreSQL
 //   - sqlite:<path> (e.g. sqlite:///data/rss-ai.db, sqlite://rss-ai.db) or a
-//     bare file: DSN → SQLite, via the pure-Go (CGO-free) modernc driver.
+//     bare file: DSN → SQLite, via the pure-Go (CGO-free) ncruces WASM driver.
 //
 // The sqlite: prefix and an optional // are stripped to yield the file path, so
 // sqlite://:memory: gives an in-memory database.
@@ -59,9 +59,9 @@ func dialectorFor(dsn string) (gorm.Dialector, error) {
 		return postgres.Open(dsn), nil
 	case strings.HasPrefix(dsn, "sqlite:"):
 		path := strings.TrimPrefix(strings.TrimPrefix(dsn, "sqlite:"), "//")
-		return sqlite.Open(path), nil
+		return gormlite.Open(path), nil
 	case strings.HasPrefix(dsn, "file:"):
-		return sqlite.Open(dsn), nil
+		return gormlite.Open(dsn), nil
 	default:
 		return nil, fmt.Errorf("unsupported db dsn %q: want a postgres:// or sqlite: scheme", dsn)
 	}

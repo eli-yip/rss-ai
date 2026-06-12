@@ -10,8 +10,8 @@ import (
 	"github.com/eli-yip/rss-ai/pkg/store"
 )
 
-// SQLite needs no external service (pure-Go modernc driver), so these run by
-// default — unlike the RSS_AI_TEST_DSN-gated Postgres tests.
+// SQLite needs no external service (pure-Go ncruces WASM driver), so these run
+// by default — unlike the RSS_AI_TEST_DSN-gated Postgres tests.
 
 func TestNewUnsupportedDSN(t *testing.T) {
 	_, err := store.New("mysql://user:pass@host/db")
