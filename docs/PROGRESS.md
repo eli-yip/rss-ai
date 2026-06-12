@@ -2,7 +2,7 @@
 
 Current state of the `rss-ai` gateway. Update as milestones land.
 
-## Status: deployed to production (linkerlab-us-2) — release 26.6.0 live
+## Status: deployed to production (linkerlab-us-2) — release 26.6.1 live
 
 ## Done
 
@@ -18,10 +18,17 @@ Current state of the `rss-ai` gateway. Update as milestones land.
 - [x] Log shipping — rss-ai stdout (JSON) scraped by Alloy via the Docker socket and pushed to Loki under `{app="rss-ai"}`. Added a `discovery.docker` → `discovery.relabel` → `loki.source.docker` pipeline to `~/services/loki/config-alloy.alloy` (no change to rss-ai's compose).
 
 - [x] SQLite support — `store.New` selects the GORM driver from the `db.dsn`
-      scheme (`postgres://` → Postgres, `sqlite:` → pure-Go CGO-free
-      `glebarez/sqlite`). Enables a zero-dependency single-file deployment; the shared
-      schema and app-level upsert needed no other changes. Non-gated SQLite store
-      tests added (run by default, no external service).
+      scheme (`postgres://` → Postgres, `sqlite:` → pure-Go CGO-free driver).
+      Enables a zero-dependency single-file deployment; the shared schema and
+      app-level upsert needed no other changes. Non-gated SQLite store tests
+      added (run by default, no external service).
+- [x] SQLite driver swapped to `ncruces/go-sqlite3` (gormlite) — upstream
+      SQLite compiled to WASM (wazero) instead of `glebarez`/`modernc.org`
+      transpiled C. Still CGO-free; closer to upstream SQLite semantics and
+      drops the `modernc.org/*` dep chain. DSN handling unchanged.
+- [x] Release 26.6.1 (CalVer) — tagged on `master`; image `eliyip/rss-ai:26.6.1`
+      + `:latest` pushed. Deployed on `linkerlab-us-2` (compose tag bumped, pulled,
+      recreated). Verified `/healthz`, `/readyz`, and `/test/1` passthrough live.
 
 ## Next
 
