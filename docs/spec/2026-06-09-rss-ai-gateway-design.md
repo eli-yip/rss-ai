@@ -198,7 +198,10 @@ enabled = true
 
 - **Go 1.26**，module `github.com/eli-yip/rss-ai`
 - **Echo/v5**（HTTP），`httputil`（`NewHTTPError` / `Resp[T]`，命名 struct 响应）
-- **GORM + PostgreSQL**（标题映射缓存，**AutoMigrate** 建表）
+- **GORM + PostgreSQL 或 SQLite**（标题映射缓存，**AutoMigrate** 建表）。驱动按 config
+  的 `db.dsn` scheme 选择：`postgres://` → PostgreSQL，`sqlite:` → 纯 Go、无 CGO 的
+  `glebarez/sqlite`（底层 `modernc.org/sqlite`）。表结构与写库逻辑两边通用（无 DB 层
+  upsert，见 §6），故零改动即可切换。
 - **beevik/etree**（保真 XML 改写，替代 gorilla/feeds）
 - **golang.org/x/sync/singleflight**（同条目去重）
 - **golang.org/x/time/rate**（AI 限流）

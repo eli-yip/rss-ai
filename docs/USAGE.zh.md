@@ -8,8 +8,9 @@
 ## 准备工作
 
 - 一个 **RSSHub** 实例（你自己的，或你已经在用的）。
-- 一个 **PostgreSQL** 数据库——`rss-ai` 把改写后的标题存在这里，避免对同一条目重复调用
-  LLM。数据表会在首次运行时自动创建。
+- 一个**数据库**——`rss-ai` 把改写后的标题存在这里，避免对同一条目重复调用 LLM。可以用
+  **PostgreSQL**，也可以用 **SQLite**（只是一个文件，无需额外起服务）。两种方式都会在首次
+  运行时自动建表。
 - 一个 **OpenAI 兼容**的 LLM 的 **API key**（OpenAI、本地模型等均可）。
 
 ## 用 Docker 部署
@@ -88,6 +89,10 @@ base_url = "https://api.openai.com/v1"
 api_key  = "sk-..."
 model    = "gpt-4o-mini"
 ```
+
+数据库驱动按 `dsn` 的 scheme 选择——`postgres://…`（或 `postgresql://…`）走
+PostgreSQL，`sqlite:///path/to/rss-ai.db` 走 SQLite 文件。用 SQLite 时记得挂载一个卷让
+文件在重启后保留，例如 `-v "$PWD/data:/data"` 配合 `dsn = "sqlite:///data/rss-ai.db"`。
 
 其余设置一般用默认值即可：`[server] addr`（监听地址，默认 `:8080`）、`[ai] rpm` 与
 `request_timeout`（限流与单次调用超时）、`[gateway] wait_timeout`（一次请求最多等多久；

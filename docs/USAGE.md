@@ -9,8 +9,10 @@ You point your RSS reader at `rss-ai` instead of at RSSHub, and that's it.
 ## What you need
 
 - An **RSSHub** instance (your own, or one you already use).
-- A **PostgreSQL** database — `rss-ai` stores rewritten titles here so it doesn't
-  call the LLM again for the same item. The table is created on first run.
+- A **database** — `rss-ai` stores rewritten titles here so it doesn't call the
+  LLM again for the same item. Use **PostgreSQL**, or **SQLite** if you'd rather
+  not run a separate database (it's just a single file, no extra service). The
+  table is created on first run either way.
 - An **API key** for any **OpenAI-compatible** LLM (OpenAI, a local model, etc.).
 
 ## Deploy with Docker
@@ -89,6 +91,11 @@ base_url = "https://api.openai.com/v1"
 api_key  = "sk-..."
 model    = "gpt-4o-mini"
 ```
+
+The database driver is chosen from the `dsn` scheme — `postgres://…` (or
+`postgresql://…`) for PostgreSQL, `sqlite:///path/to/rss-ai.db` for a SQLite
+file. With SQLite, mount a volume so the file survives restarts, e.g.
+`-v "$PWD/data:/data"` and `dsn = "sqlite:///data/rss-ai.db"`.
 
 Other settings you can leave at their defaults: `[server] addr` (listen address,
 default `:8080`), `[ai] rpm` and `request_timeout` (rate limit and per-call

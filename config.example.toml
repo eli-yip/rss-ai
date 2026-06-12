@@ -8,6 +8,8 @@ level = "info"         # debug | info | error
 addr = ":8080"
 
 [db]
+# PostgreSQL, or SQLite for a zero-dependency single-file store:
+#   dsn = "sqlite:///data/rss-ai.db"
 dsn = "postgres://user:pass@host:5432/rss_ai?sslmode=disable"
 
 [upstream]

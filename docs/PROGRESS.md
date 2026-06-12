@@ -17,6 +17,12 @@ Current state of the `rss-ai` gateway. Update as milestones land.
 - [x] Production deploy on `linkerlab-us-2` — added as a service in `~/services/rsshub/compose.yaml` (internal-only, no Traefik route yet). `config.toml` mounted; upstream `http://rsshub:1200`, DB `rss_ai` on shared `onedb`. Verified: `/healthz`, `/readyz`, byte-transparent passthrough (`/test/1`), and live Telegram title rewrite (`/telegram/channel/durov`).
 - [x] Log shipping — rss-ai stdout (JSON) scraped by Alloy via the Docker socket and pushed to Loki under `{app="rss-ai"}`. Added a `discovery.docker` → `discovery.relabel` → `loki.source.docker` pipeline to `~/services/loki/config-alloy.alloy` (no change to rss-ai's compose).
 
+- [x] SQLite support — `store.New` selects the GORM driver from the `db.dsn`
+      scheme (`postgres://` → Postgres, `sqlite:` → pure-Go CGO-free
+      `glebarez/sqlite`). Enables a zero-dependency single-file deployment; the shared
+      schema and app-level upsert needed no other changes. Non-gated SQLite store
+      tests added (run by default, no external service).
+
 ## Next
 
 - [ ] Grafana dashboard from `request.done` events (spec §11.6): cache-hit rate, AI call/error rate, p50/p95/p99 latency, timeout-fallback rate, handled-vs-passthrough mix, upstream latency/errors.
@@ -29,8 +35,9 @@ Current state of the `rss-ai` gateway. Update as milestones land.
 
 - Integration tests run the gateway against a real RSSHub (`compose.test.yaml`,
   RSSHub `/test/*` routes). Gated on `RSS_AI_TEST_UPSTREAM`; `just integration`
-  brings the stack up, runs the suite, and tears it down. Store tests are gated on
-  `RSS_AI_TEST_DSN` (a reachable Postgres).
+  brings the stack up, runs the suite, and tears it down. The Postgres store tests
+  are gated on `RSS_AI_TEST_DSN` (a reachable Postgres); the SQLite store tests run
+  by default (pure-Go driver, no external service).
 - spec was amended for plan-2 (RSS-2.0-only, AI reads item body, any-llm-go); see
   the plan-2 notes inside the design doc.
 - Deploy topology (`linkerlab-us-2`): rss-ai shares the external `traefik` Docker
