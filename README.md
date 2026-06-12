@@ -50,3 +50,7 @@ See the usage docs below for a `compose` snippet and configuration details.
 ## Documentation
 
 - **Usage** — [English](docs/USAGE.md) · [中文](docs/USAGE.zh.md)
+
+## License
+
+[MIT](LICENSE)
